@@ -33,14 +33,14 @@ async function registerEvents(client) {
 }
 
 async function registerLanguages(client) {
-    const languagesPath = path.join(__dirname, '/localization');
+    const languagesPath = path.join(__dirname, '../assets/localization');
     const languages = fs.readdirSync(languagesPath);
     if (languages.length) {
         for (const language of languages) {
             try {
                 const files = {
-                    strings: require(`./localization/${language}/strings.json`),
-                    countries: require(`./localization/${language}/countries.json`)
+                    strings: require(`${languagesPath}/${language}/strings.json`),
+                    countries: require(`${languagesPath}/${language}/countries.json`)
                 }
                 client.languageFiles.set(language, files);
             }
