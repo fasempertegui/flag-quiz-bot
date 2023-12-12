@@ -3,21 +3,6 @@ const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const normalizeText = require('../utils/normalizeText.js');
 const formatDate = require('../utils/formatDate.js');
 
-const hasPlayedToday = async function (connection, userID, today) {
-    try {
-        const [result] = await connection.query("SELECT last_played FROM scores WHERE discord_id = ?", [userID]);
-
-        if (!result.length) {
-            return false;
-        }
-
-        const lastPlayed = result[0].last_played;
-        return formatDate(lastPlayed) === formatDate(today);
-    } catch (err) {
-        console.log(err);
-    }
-}
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
@@ -25,24 +10,30 @@ module.exports = {
         .setDescriptionLocalizations({ 'es-ES': 'tu sesion diaria de cinco banderas aleatorias' }),
     async execute(interaction, userLanguage) {
 
-        const { connection, playLock, languageFiles } = interaction.client;
+        const { connection, activeServers, languageFiles } = interaction.client;
         const { id: serverID } = interaction.guild;
         const { id: userID } = interaction.user;
 
         const { strings, countries } = languageFiles.get(userLanguage);
 
-        if (playLock.has(serverID)) {
+        if (activeServers.has(serverID)) {
             interaction.reply(strings["IN_USE"]);
             return;
         }
 
         const today = new Date();
-        if (await hasPlayedToday(connection, userID, today)) {
-            interaction.reply(strings['ALREADY_PLAYED']);
-            return;
+        const query = { "_id": userID };
+        const result = await connection.findOne(query);
+
+        if (result) {
+            const lastPlayed = result["last_played"];
+            if (formatDate(lastPlayed) === formatDate(today)) {
+                interaction.reply(strings['ALREADY_PLAYED']);
+                return;
+            }
         }
 
-        playLock.set(serverID, true);
+        activeServers.set(serverID, true);
 
         const attachments = [];
 
@@ -58,7 +49,7 @@ module.exports = {
                 embed: messageEmbed,
                 flag: flag,
                 answers: [country.name.official, country.name.common]
-            }
+            };
             attachments.push(attachment);
         }
 
@@ -70,9 +61,12 @@ module.exports = {
             let message = null;
             for (const attachment of attachments) {
                 const { embed, flag, answers } = attachment;
-                if (message) message.edit({ embeds: [embed], files: [flag] });
-                else message = await interaction.channel.send({ embeds: [embed], files: [flag] });
-
+                if (message) {
+                    message.edit({ embeds: [embed], files: [flag] });
+                }
+                else {
+                    message = await interaction.channel.send({ embeds: [embed], files: [flag] });
+                }
                 const filter = response => {
                     return answers.some(r => normalizeText(r) === normalizeText(response.content) && userID === response.author.id);
                 }
@@ -86,8 +80,16 @@ module.exports = {
                     })
             }
             interaction.channel.send(`${strings['CORRECT_ANSWERS'].replace(/%REPL%/g, sessionCorrectAnswers)}. ${strings['POINTS'].replace(/%REPL%/g, sessionScore)}`);
-            connection.query("INSERT INTO scores (discord_id, score, last_played, times_played) VALUES (?, ?, ?, default) ON DUPLICATE KEY UPDATE score=score+VALUES(score), last_played=VALUES(last_played), times_played=times_played+1", [userID, sessionScore, today]);
-            playLock.delete(serverID);
+            let values;
+            if (result) {
+                values = { $set: { "score": result["score"] + sessionScore, "last_played": today, "times_played": result["times_played"] + 1 } };
+                await connection.updateOne(query, values);
+            }
+            else {
+                values = { "_id": userID, "score": sessionScore, "last_played": today, "times_played": 1 }
+                await connection.insertOne(values)
+            }
+            activeServers.delete(serverID);
         }
         catch (err) {
             console.log(err);

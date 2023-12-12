@@ -1,9 +1,22 @@
 require('dotenv').config();
-const mysql = require('mysql2/promise');
+const { MongoClient } = require('mongodb')
 
-module.exports = mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASS,
-    database: process.env.DB_NAME
-})
+const url = `mongodb://${process.env.DB_HOST}:${process.env.DB_PORT}/`
+
+let db;
+
+module.exports = async function () {
+    if (!db) {
+        const client = new MongoClient(url);
+        try {
+            await client.connect();
+            console.log('Succesfully connected to the database');
+            db = client.db(process.env.DB_NAME);
+        } catch (error) {
+            console.error('Error connecting to the database', error);
+            throw error;
+        }
+    }
+
+    return db;
+}

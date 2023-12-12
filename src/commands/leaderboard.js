@@ -14,9 +14,10 @@ module.exports = {
         const { strings } = languageFiles.get(userLanguage);
 
         try {
-            const [result] = await connection.query("SELECT * FROM scores ORDER BY score DESC, times_played ASC, last_played ASC LIMIT 0, 10");
+            const sort = { "scores": -1, "times_played": 1, "last_played": -1 }
+            const results = await connection.find().sort(sort).toArray();
 
-            if (!result.length) {
+            if (!results) {
                 interaction.reply(string['EMPTY_LEADERBOARD']);
                 return;
             }
@@ -26,18 +27,18 @@ module.exports = {
             messageEmbed.setDescription('Ordenados por:\n > puntos\n > dias jugados\n > ult. vez jugado');
             messageEmbed.setColor('#ce1126');
             let fieldText = '';
-            for (let index = 0; index < result.length; index++) {
+            let index = 0;
+            for(let result of results){
                 try {
-                    const { discord_id, score } = result[index];
-                    const player = await interaction.client.users.cache.get(discord_id);
-                    fieldText += `${index + 1}. ${player.username}#${player.discriminator}: ${score} points\n`;
+                    const player = await interaction.client.users.cache.get(result["_id"]);
+                    fieldText += `${index + 1}. @${player.username}: ${result["score"]} points\n`;
+                    index++;
                 }
                 catch (err) {
                     console.log(err);
                 }
-
             }
-
+            console.log(fieldText);
             messageEmbed.addFields(
                 {
                     name: strings['TOP_10'],

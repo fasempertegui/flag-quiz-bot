@@ -1,5 +1,5 @@
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
-const createConnection = require('../../../database/database.js');
+const connection = require('../../../database/database.js');
 
 class DiscordClient extends Client {
     constructor() {
@@ -12,18 +12,17 @@ class DiscordClient extends Client {
                 GatewayIntentBits.MessageContent
             ]
         })
-        createConnection
+        connection()
             .then(connection => {
-                this.connection = connection;
-                console.log('Succesfully connected to the database');
+                this.connection = connection.collection("players")
             })
             .catch(err => {
-                throw new Error(err);
+                throw err;
             })
         this.commands = new Collection();
         this.languageFiles = new Collection();
+        this.activeServers = new Collection();
         this.defaultLanguage = 'en-US';
-        this.playLock = new Collection();
 
     }
 }
