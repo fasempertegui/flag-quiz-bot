@@ -1,8 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
-const normalizeText = require('../utils/normalizeText.js');
-const addLineBreaks = require('../utils/styles/lineBreaks.js');
-const styleCodeBlock = require('../utils/styles/codeBlock.js');
+const { normalizeText, addLineBreaks, styleCodeBlock } = require('../utils/styles/styles.js');
 
 module.exports = {
     data: new SlashCommandBuilder()

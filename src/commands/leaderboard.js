@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { EmbedBuilder } = require('discord.js');
-const styleCodeBlock = require('../utils/styles/codeBlock.js');
+const { styleCodeBlock } = require('../utils/styles/styles.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -38,7 +38,6 @@ module.exports = {
                     console.log(err);
                 }
             }
-            console.log(fieldText);
             messageEmbed.addFields(
                 {
                     name: strings['TOP_10'],

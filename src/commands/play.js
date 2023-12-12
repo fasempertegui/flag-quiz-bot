@@ -1,7 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
-const normalizeText = require('../utils/normalizeText.js');
-const formatDate = require('../utils/formatDate.js');
+const { normalizeText, formatDate } = require('../utils/styles/styles.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -54,7 +53,6 @@ module.exports = {
         }
 
         let sessionCorrectAnswers = 0;
-        let sessionScore = 0;
 
         try {
             await interaction.reply(strings['STARTING']);
@@ -73,12 +71,12 @@ module.exports = {
                 await interaction.channel.awaitMessages({ filter, max: 1, time: 10000, errors: ['time'] })
                     .then((collected) => {
                         collected.first().react('✅');
-                        sessionScore += 10;
                         sessionCorrectAnswers++;
                     })
                     .catch((err) => {
                     })
             }
+            let sessionScore = sessionCorrectAnswers * 10;
             interaction.channel.send(`${strings['CORRECT_ANSWERS'].replace(/%REPL%/g, sessionCorrectAnswers)}. ${strings['POINTS'].replace(/%REPL%/g, sessionScore)}`);
             let values;
             if (result) {

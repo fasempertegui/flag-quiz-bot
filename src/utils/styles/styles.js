@@ -1,4 +1,14 @@
-module.exports = function (text, maxCharsPerLine) {
+const unorm = require('unorm');
+
+function normalizeText(text) {
+    return unorm.nfkd(text).replace(/[\u0300-\u036F]/g, '').toLowerCase();
+}
+
+function formatDate(date) {
+    return date.toISOString().split("T")[0];
+}
+
+function addLineBreaks(text, maxCharsPerLine) {
     if (text.length <= maxCharsPerLine) {
         return text;
     } else {
@@ -17,3 +27,9 @@ module.exports = function (text, maxCharsPerLine) {
         return result.join("\n");
     }
 }
+
+function styleCodeBlock(text) {
+    return `\`\`\`${text}\`\`\``
+}
+
+module.exports = { normalizeText, formatDate, addLineBreaks, styleCodeBlock }
