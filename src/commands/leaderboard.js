@@ -28,7 +28,7 @@ module.exports = {
             messageEmbed.setColor('#ce1126');
             let fieldText = '';
             let index = 0;
-            for(let result of results){
+            for (let result of results) {
                 try {
                     const player = await interaction.client.users.cache.get(result["_id"]);
                     fieldText += `${index + 1}. @${player.username}: ${result["score"]} points\n`;
