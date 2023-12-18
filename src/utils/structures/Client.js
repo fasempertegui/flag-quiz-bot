@@ -14,16 +14,15 @@ class DiscordClient extends Client {
         })
         connection()
             .then(connection => {
-                this.connection = connection.collection("players")
+                const collection = connection.collection("players")
+                this.connection = collection
             })
             .catch(err => {
                 throw err;
             })
         this.commands = new Collection();
-        this.languageFiles = new Collection();
         this.activeServers = new Collection();
-        this.defaultLanguage = 'en-US';
-
+        this.languages = [];
     }
 }
 

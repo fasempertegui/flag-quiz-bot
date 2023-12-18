@@ -33,24 +33,23 @@ async function registerEvents(client) {
 }
 
 async function registerLanguages(client) {
-    const languagesPath = path.join(__dirname, '../assets/localization');
+    const languagesPath = path.join(__dirname, '../locales');
     const languages = fs.readdirSync(languagesPath);
-    if (languages.length) {
-        for (const language of languages) {
-            try {
-                const files = {
-                    strings: require(`${languagesPath}/${language}/strings.json`),
-                    countries: require(`${languagesPath}/${language}/countries.json`)
-                }
-                client.languageFiles.set(language, files);
+    if (languages) {
+        for (let language of languages) {
+            const languagePath = path.join(languagesPath, language);
+            const files = fs.readdirSync(languagePath);
+            if (!files.includes("countries.json")) {
+                throw new Error(`MISSING COUNTRIES FOR ${language}`);
             }
-            catch (err) {
-                throw new Error(`MISSING_FILES (${language})`);
+            if (!files.includes("strings.json")) {
+                throw new Error(`MISSING STRINGS FOR ${language}`);
             }
+            client.languages.push(language);
         }
     }
     else {
-        throw new Error('NO_LANGUAGE_DIRECTORY');
+        throw new Error('MISSING LANGUAGE FOLDER(S) IN src/locales');
     }
 }
 

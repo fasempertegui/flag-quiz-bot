@@ -14,7 +14,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.CLIENT_TOKEN);
     try {
         await registerLanguages(client);
         await registerEvents(client);
-        await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
+        await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), {
             body: await registerCommands(client)
         })
         client.login(process.env.CLIENT_TOKEN);
