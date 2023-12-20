@@ -21,7 +21,7 @@ class DiscordClient extends Client {
                 throw err;
             })
         this.commands = new Collection();
-        this.activeServers = new Collection();
+        this.activeServers = [];
         this.languages = [];
     }
 }

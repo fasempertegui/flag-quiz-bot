@@ -2,6 +2,59 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const { normalizeText, formatDate } = require('../utils/styles/styles.js');
 
+function inUse(activeServers, serverID) {
+    return activeServers.includes(serverID)
+}
+
+async function findPlayer(connection, userID) {
+    const query = { "_id": userID };
+    const result = await connection.findOne(query);
+    return result;
+}
+
+function canPlay(player) {
+    const today = formatDate(new Date())
+    const lastPlayed = player["last_played"];
+    return !(lastPlayed == today)
+}
+
+function buildTrivia(userLanguage, strings) {
+    const countries = require(`../locales/${userLanguage}/countries.json`);
+    const keys = Object.keys(countries);
+    const trivia = [];
+    for (let i = 0; i < 3; i++) {
+        const index = Math.floor(Math.random() * keys.length);
+        const key = keys[index];
+        const country = countries[key];
+        keys.splice(index, 1);
+        const flagFile = `${country.flag_code}.png`;
+        const flagPath = `src/assets/flags/${flagFile}`;
+        const flagURL = `attachment://${flagFile}`;
+        const flag = new AttachmentBuilder(flagPath);
+        const embed = new EmbedBuilder()
+            .setTitle(strings["GUESS"])
+            .setImage(flagURL)
+            .setColor("#FFFFFF");
+        const answers = country.names.map(nombre => normalizeText(nombre));
+        const t = { embed: embed, flag: flag, answers: answers };
+        trivia.push(t);
+    }
+    return trivia
+}
+
+async function updatePlayer(connection, player, score) {
+    const today = formatDate(new Date())
+    const filter = { "_id": player["_id"] }
+    const update = { $set: { "score": player["score"] + score, "last_played": today, "times_played": player["times_played"] + 1 } }
+    await connection.updateOne(filter, update)
+}
+
+async function createPlayer(connection, userID, score) {
+    const today = formatDate(new Date())
+    const player = { "_id": userID, "score": score, "last_played": today, "times_played": 1 }
+    await connection.insertOne(player)
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
@@ -9,85 +62,42 @@ module.exports = {
         .setDescriptionLocalizations({ 'es-ES': 'tu sesion diaria de cinco banderas aleatorias' }),
     async execute(interaction, userLanguage) {
 
-        const { connection, activeServers, languageFiles } = interaction.client;
-        const { id: serverID } = interaction.guild;
-        const { id: userID } = interaction.user;
+        const strings = require(`../locales/${userLanguage}/strings.json`)
+        let { activeServers } = interaction.client
 
-        const { strings, countries } = languageFiles.get(userLanguage);
+        if (inUse(activeServers, interaction.guild.id)) return interaction.reply(strings["IN_USE"]);
 
-        if (activeServers.has(serverID)) {
-            interaction.reply(strings["IN_USE"]);
-            return;
-        }
+        const { connection } = interaction.client;
+        const player = await findPlayer(connection, interaction.user.id);
+        if (player && !canPlay(player)) return interaction.reply(strings['ALREADY_PLAYED']);
 
-        const today = new Date();
-        const query = { "_id": userID };
-        const result = await connection.findOne(query);
+        activeServers.push(interaction.guild.id)
 
-        if (result) {
-            const lastPlayed = result["last_played"];
-            if (formatDate(lastPlayed) === formatDate(today)) {
-                interaction.reply(strings['ALREADY_PLAYED']);
-                return;
-            }
-        }
+        const trivia = buildTrivia(userLanguage, strings)
 
-        activeServers.set(serverID, true);
-
-        const attachments = [];
-
-        for (let i = 0; i < 5; i++) {
-            const index = Math.floor(Math.random() * countries.length);
-            const country = countries.splice(index, 1)[0];
-            const flag = new AttachmentBuilder(`src/assets/flags/${country.cca2}.png`);
-            const messageEmbed = new EmbedBuilder();
-            messageEmbed.setTitle(strings['GUESS']);
-            messageEmbed.setImage(`attachment://${country.cca2}.png`);
-            messageEmbed.setColor('#FFFFFF');
-            const attachment = {
-                embed: messageEmbed,
-                flag: flag,
-                answers: [country.name.official, country.name.common]
-            };
-            attachments.push(attachment);
-        }
-
-        let sessionCorrectAnswers = 0;
-
+        let correctAnswers = 0;
         try {
             await interaction.reply(strings['STARTING']);
-            let message = null;
-            for (const attachment of attachments) {
-                const { embed, flag, answers } = attachment;
-                if (message) {
-                    message.edit({ embeds: [embed], files: [flag] });
-                }
-                else {
-                    message = await interaction.channel.send({ embeds: [embed], files: [flag] });
-                }
-                const filter = response => {
-                    return answers.some(r => normalizeText(r) === normalizeText(response.content) && userID === response.author.id);
-                }
+            let message;
+            for (const t of trivia) {
+                const { embed, flag, answers } = t;
+                if (!message) message = await interaction.channel.send({ embeds: [embed], files: [flag] });
+                else await message.edit({ embeds: [embed], files: [flag] });
+                const filter = response => { return answers.some(ans => ans === normalizeText(response.content) && interaction.user.id === response.author.id); }
                 await interaction.channel.awaitMessages({ filter, max: 1, time: 10000, errors: ['time'] })
-                    .then((collected) => {
-                        collected.first().react('✅');
-                        sessionCorrectAnswers++;
+                    .then(async (collected) => {
+                        await collected.first().react('✅');
+                        correctAnswers++;
                     })
                     .catch((err) => {
                     })
             }
-            let sessionScore = sessionCorrectAnswers * 10;
-            interaction.channel.send(`${strings['CORRECT_ANSWERS'].replace(/%REPL%/g, sessionCorrectAnswers)}. ${strings['POINTS'].replace(/%REPL%/g, sessionScore)}`);
-            let values;
-            if (result) {
-                values = { $set: { "score": result["score"] + sessionScore, "last_played": today, "times_played": result["times_played"] + 1 } };
-                await connection.updateOne(query, values);
-            }
-            else {
-                values = { "_id": userID, "score": sessionScore, "last_played": today, "times_played": 1 }
-                await connection.insertOne(values)
-            }
-            activeServers.delete(serverID);
+            activeServers.splice(activeServers.indexOf(interaction.guild.id), 1);
+            let score = correctAnswers * 10;
+            if (player) await updatePlayer(connection, player, score);
+            else await createPlayer(connection, interaction.user.id, score);
+            await message.delete();
+            await interaction.channel.send(`<@${interaction.user.id}>, ${strings['CORRECT_ANSWERS'].replace(/%REPL%/g, correctAnswers)}. ${strings['POINTS'].replace(/%REPL%/g, score)}`);
         }
         catch (err) {
             console.log(err);

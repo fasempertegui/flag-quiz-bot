@@ -7,17 +7,12 @@ module.exports = {
 
         const command = interaction.client.commands.get(interaction.commandName);
 
-        if (!command) {
-            console.log(`No command matching ${interaction.commandName} was found.`);
-            return
-        }
+        if (!command) return console.log(`No command matching ${interaction.commandName} was found.`);
 
-        const userLanguage = interaction.locale;
-        const { languageFiles, defaultLanguage } = interaction.client;
+        const { languages } = interaction.client
+        userLanguage = interaction.locale
 
-        if (!languageFiles.has(userLanguage)) {
-            userLanguage = defaultLanguage;
-        }
+        if (!languages.includes(userLanguage)) userLanguage = "en-US"
 
         try {
             await command.execute(interaction, userLanguage);
