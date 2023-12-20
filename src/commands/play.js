@@ -58,8 +58,8 @@ async function createPlayer(connection, userID, score) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
-        .setDescription('your daily session of five random flags')
-        .setDescriptionLocalizations({ 'es-ES': 'tu sesion diaria de cinco banderas aleatorias' }),
+        .setDescription('your daily session of three random flags')
+        .setDescriptionLocalizations({ 'es-ES': 'tu sesion diaria de tres banderas aleatorias' }),
     async execute(interaction, userLanguage) {
 
         const strings = require(`../locales/${userLanguage}/strings.json`)
